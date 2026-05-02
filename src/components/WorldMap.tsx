@@ -171,7 +171,7 @@ export function WorldMap({
         <path d={path({ type: "Sphere" }) ?? undefined} fill="hsl(222 38% 4% / 0.64)" />
 
         <g transform={`translate(${MAP_CENTER.x * (1 - zoom)} ${MAP_CENTER.y * (1 - zoom)}) scale(${zoom})`}>
-          {countries.features.map((country) => {
+          {countries.features.map((country, index) => {
             const iso = String(country.id ?? "").padStart(3, "0");
             const territory = bySlug.get(countryIsoToSlug[iso]);
             const status = territory?.status ?? "NONE";
@@ -183,7 +183,7 @@ export function WorldMap({
 
             return (
               <path
-                key={iso}
+                key={`${iso}-${index}`}
                 d={countryPath}
                 fill={territory ? statusToColor(status) : "hsl(222 13% 24%)"}
                 fillOpacity={territory ? (selected ? 0.86 : 0.58) : 0.32}
