@@ -1,0 +1,117 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 222 30% 5%;
+    --foreground: 210 40% 98%;
+    --card: 222 28% 8%;
+    --card-foreground: 210 40% 98%;
+    --popover: 222 30% 6%;
+    --popover-foreground: 210 40% 98%;
+    --primary: 43 96% 56%;
+    --primary-foreground: 222 47% 6%;
+    --primary-glow: 48 100% 67%;
+    --secondary: 222 24% 14%;
+    --secondary-foreground: 210 40% 98%;
+    --muted: 222 20% 12%;
+    --muted-foreground: 215 16% 60%;
+    --accent: 142 76% 45%;
+    --accent-foreground: 222 47% 6%;
+    --destructive: 0 84% 58%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 222 20% 16%;
+    --input: 222 20% 14%;
+    --ring: 43 96% 56%;
+    --radius: 0.5rem;
+    --t-empty: 222 12% 28%;
+    --t-low: 142 50% 38%;
+    --t-mid: 142 80% 50%;
+    --t-high: 43 96% 56%;
+    --t-war: 12 95% 56%;
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  html {
+    min-height: 100%;
+    background: hsl(var(--background));
+  }
+
+  body {
+    @apply min-h-screen bg-background text-foreground antialiased;
+    font-family: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+    background:
+      radial-gradient(circle at 15% 0%, hsl(142 76% 18% / 0.22), transparent 30rem),
+      radial-gradient(circle at 85% 10%, hsl(43 96% 18% / 0.2), transparent 32rem),
+      linear-gradient(180deg, hsl(222 30% 5%), hsl(222 34% 3%));
+  }
+
+  a {
+    @apply transition-colors;
+  }
+}
+
+@layer components {
+  .panel {
+    @apply border border-white/10 bg-zinc-950/80 shadow-2xl shadow-black/30 backdrop-blur-xl;
+  }
+
+  .soft-card {
+    @apply rounded-lg border border-white/10 bg-white/[0.035] shadow-xl shadow-black/20;
+  }
+
+  .metric-label {
+    @apply text-xs uppercase tracking-[0.18em] text-zinc-500;
+  }
+
+  .map-grid {
+    background-image:
+      linear-gradient(hsl(0 0% 100% / 0.045) 1px, transparent 1px),
+      linear-gradient(90deg, hsl(0 0% 100% / 0.045) 1px, transparent 1px);
+    background-size: 42px 42px;
+  }
+}
+
+.territory-war {
+  animation: pulse-war 2s ease-in-out infinite;
+}
+
+@keyframes pulse-war {
+  0%, 100% {
+    filter: drop-shadow(0 0 4px hsl(12 95% 56% / 0.6));
+  }
+  50% {
+    filter: drop-shadow(0 0 18px hsl(12 95% 56% / 1));
+  }
+}
+
+.territory-gold {
+  animation: glow-gold 3s ease-in-out infinite;
+}
+
+@keyframes glow-gold {
+  0%, 100% {
+    filter: drop-shadow(0 0 5px hsl(43 96% 56% / 0.55));
+  }
+  50% {
+    filter: drop-shadow(0 0 18px hsl(48 100% 67% / 0.95));
+  }
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: hsl(222 20% 18%);
+  border-radius: 8px;
+}

@@ -1,0 +1,24 @@
+export function slugify(value: string) {
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/(^-|-$)+/g, "");
+}
+
+export async function uniqueSlug(
+  base: string,
+  exists: (slug: string) => Promise<boolean>,
+) {
+  const normalized = slugify(base) || "usuario";
+  let slug = normalized;
+  let suffix = 2;
+
+  while (await exists(slug)) {
+    slug = `${normalized}-${suffix}`;
+    suffix += 1;
+  }
+
+  return slug;
+}
