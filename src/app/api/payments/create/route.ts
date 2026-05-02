@@ -85,7 +85,7 @@ export async function POST(request: NextRequest) {
     const provider = await createPixPayment({
       paymentId: payment.id,
       amountCents,
-      description: `Compre o Topo - ${territory.name}`,
+      description: `OwnMap - ${territory.name}`,
       payerName: publicName,
       notificationUrl,
     });

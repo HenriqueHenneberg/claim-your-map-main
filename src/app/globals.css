@@ -45,9 +45,7 @@
     @apply min-h-screen bg-background text-foreground antialiased;
     font-family: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
     background:
-      radial-gradient(circle at 15% 0%, hsl(142 76% 18% / 0.22), transparent 30rem),
-      radial-gradient(circle at 85% 10%, hsl(43 96% 18% / 0.2), transparent 32rem),
-      linear-gradient(180deg, hsl(222 30% 5%), hsl(222 34% 3%));
+      linear-gradient(180deg, hsl(217 34% 7%), hsl(220 38% 3%) 44%, hsl(222 42% 2%));
   }
 
   a {
@@ -73,6 +71,29 @@
       linear-gradient(hsl(0 0% 100% / 0.045) 1px, transparent 1px),
       linear-gradient(90deg, hsl(0 0% 100% / 0.045) 1px, transparent 1px);
     background-size: 42px 42px;
+  }
+
+  .ownmap-root {
+    min-height: 100vh;
+    background:
+      linear-gradient(180deg, rgba(8, 18, 27, 0.92), rgba(4, 8, 13, 0.98)),
+      repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.026) 0 1px, transparent 1px 96px);
+  }
+
+  .ownmap-glass {
+    @apply rounded-2xl border border-white/10 bg-slate-950/[0.72] shadow-2xl shadow-black/25 backdrop-blur-xl;
+  }
+
+  .ownmap-panel {
+    @apply border border-white/10 bg-slate-950/[0.92] shadow-2xl shadow-black/40 backdrop-blur-xl;
+  }
+
+  .ownmap-section {
+    @apply relative;
+  }
+
+  .ownmap-eyebrow {
+    @apply text-xs font-black uppercase tracking-[0.2em] text-amber-200/80;
   }
 }
 

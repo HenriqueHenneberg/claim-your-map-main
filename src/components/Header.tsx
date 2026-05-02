@@ -1,43 +1,47 @@
-import { Crown, Radio, ShieldCheck, Trophy, UserCircle } from "lucide-react";
+import Image from "next/image";
 import Link from "next/link";
+import { Crosshair, Radio, Search, UserCircle } from "lucide-react";
 
 export function Header() {
   return (
     <header className="fixed left-1/2 top-4 z-50 w-[calc(100%-1.5rem)] max-w-7xl -translate-x-1/2">
-      <div className="panel flex items-center justify-between rounded-lg px-3 py-2 md:px-4">
+      <div className="ownmap-glass flex items-center justify-between px-3 py-2 md:px-4">
         <Link href="/" className="flex min-w-0 items-center gap-3">
-          <span className="flex size-10 shrink-0 items-center justify-center rounded-lg border border-amber-300/30 bg-amber-300/15 text-amber-200">
-            <Crown className="size-5" />
+          <span className="relative flex size-11 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-amber-300/35 bg-black">
+            <Image src="/ownmap-logo.svg" alt="OwnMap" width={44} height={44} priority className="size-11 object-cover" />
           </span>
           <span className="min-w-0">
-            <span className="block truncate text-sm font-black uppercase text-white">Compre o Topo</span>
-            <span className="hidden text-xs text-zinc-500 sm:block">Pague pouco. Domine mais.</span>
+            <span className="block truncate text-sm font-black uppercase text-white">OwnMap</span>
+            <span className="hidden text-xs text-slate-500 sm:block">Domine o mapa, deixe sua marca.</span>
           </span>
         </Link>
 
-        <nav className="hidden items-center gap-6 text-sm text-zinc-300 md:flex">
-          <Link href="/rankings" className="hover:text-emerald-300">Rankings</Link>
-          <a href="/#como-funciona" className="hover:text-emerald-300">Como funciona</a>
-          <a href="/#comunidade" className="hover:text-emerald-300">Comunidade</a>
+        <nav className="hidden items-center gap-6 text-sm text-slate-300 md:flex">
+          <a href="/#explorar" className="hover:text-amber-200">Explorar</a>
+          <Link href="/rankings" className="hover:text-amber-200">Rankings</Link>
+          <a href="/#comunidade" className="hover:text-amber-200">Comunidade</a>
         </nav>
 
         <div className="flex items-center gap-2">
-          <div className="hidden items-center gap-2 rounded-lg border border-emerald-400/20 bg-emerald-400/10 px-3 py-2 text-xs text-emerald-200 lg:flex">
+          <div className="hidden items-center gap-2 rounded-xl border border-emerald-400/20 bg-emerald-400/10 px-3 py-2 text-xs text-emerald-100 lg:flex">
             <Radio className="size-3.5" />
-            <span>1.248 online</span>
+            <span>12.8k explorando</span>
           </div>
-          <div className="hidden items-center gap-2 rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-xs text-zinc-300 sm:flex">
-            <ShieldCheck className="size-3.5 text-emerald-300" />
-            <span>Sistema ativo</span>
-          </div>
-          <Link
-            href="/checkout"
-            className="inline-flex h-10 items-center gap-2 rounded-lg bg-emerald-400 px-3 text-sm font-bold text-zinc-950 shadow-lg shadow-emerald-500/20 hover:bg-emerald-300"
+          <a
+            href="/#explorar"
+            className="hidden h-10 items-center gap-2 rounded-xl border border-white/10 px-3 text-sm font-bold text-slate-100 hover:bg-white/10 sm:inline-flex"
           >
-            <Trophy className="size-4" />
-            <span className="hidden sm:inline">Tomar território</span>
-          </Link>
-          <UserCircle className="size-9 text-zinc-400" />
+            <Search className="size-4" />
+            Buscar
+          </a>
+          <a
+            href="/#explorar"
+            className="inline-flex h-10 items-center gap-2 rounded-xl bg-white px-3 text-sm font-black text-slate-950 shadow-lg shadow-amber-400/10 hover:bg-amber-100"
+          >
+            <Crosshair className="size-4" />
+            <span className="hidden sm:inline">Escolher territorio</span>
+          </a>
+          <UserCircle className="size-9 text-slate-400" />
         </div>
       </div>
     </header>

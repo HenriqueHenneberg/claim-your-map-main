@@ -63,7 +63,7 @@ export function AdminDashboard({ data }: { data: AdminData }) {
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <div className="metric-label">Painel administrativo</div>
-          <h1 className="mt-2 text-3xl font-black text-white">Operação Compre o Topo</h1>
+          <h1 className="mt-2 text-3xl font-black text-white">Operação OwnMap</h1>
         </div>
         <button onClick={logout} className="inline-flex items-center gap-2 rounded-lg border border-white/10 px-4 py-2 text-sm font-bold text-zinc-200 hover:bg-white/10">
           <LogOut className="size-4" />

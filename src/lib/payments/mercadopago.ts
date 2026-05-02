@@ -38,7 +38,7 @@ export async function createPixPayment(input: PixPaymentInput) {
   const token = process.env.MERCADOPAGO_ACCESS_TOKEN;
 
   if (!token) {
-    const devCode = `DEV-PIX-COMPRE-O-TOPO-${input.paymentId}-${input.amountCents}`;
+    const devCode = `DEV-PIX-OWNMAP-${input.paymentId}-${input.amountCents}`;
     return {
       providerPaymentId: `dev_${input.paymentId}`,
       status: PaymentStatus.PENDING,
@@ -63,7 +63,7 @@ export async function createPixPayment(input: PixPaymentInput) {
       external_reference: input.paymentId,
       notification_url: input.notificationUrl,
       payer: {
-        email: input.payerEmail ?? `${input.paymentId}@compreotopo.local`,
+        email: input.payerEmail ?? `${input.paymentId}@ownmap.local`,
         first_name: input.payerName,
       },
     }),

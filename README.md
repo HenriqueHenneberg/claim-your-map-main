@@ -1,195 +1,85 @@
-# Compre o Topo
+# OwnMap
 
-Plataforma web de competição territorial simbólica:
+OwnMap e uma plataforma visual de dominacao territorial simbolica. A experiencia principal abre direto em um mapa interativo: o usuario pesquisa paises, estados e cidades, ve quem domina cada territorio, compara rankings locais e simula como ficaria a personalizacao publica do dono.
 
-> Pague pouco. Suba no ranking. Domine sua cidade, seu estado ou o mundo.
-
-O MVP usa Next.js App Router, TypeScript, Tailwind CSS, PostgreSQL, Prisma, Zod e integração Pix via Mercado Pago. O ranking não é fake: pagamentos aprovados somam pontos no banco, atualizam território, dono, status e eventos.
+Este momento do projeto foca no produto desejavel para o usuario comum: mapa bonito, exploracao, busca, camadas, rankings mockados vivos e paginas de territorio. Pagamento real, admin, banco definitivo e autenticacao ficaram fora da interface principal nesta fase.
 
 ## Stack
 
-- Next.js App Router + TypeScript
+- Next.js App Router
+- TypeScript
 - Tailwind CSS
-- PostgreSQL
-- Prisma ORM
-- API Routes
-- Mercado Pago Pix
-- Webhook de confirmação
-- Zod
-- Cookies admin httpOnly assinados com `crypto`
-- Rate limit em criação de pagamentos e login admin
+- D3 Geo + TopoJSON
+- `world-atlas` para fronteiras reais de paises
+- GeoJSON do IBGE em `public/maps/brazil-states.geojson` para estados brasileiros
+- Dados mockados ricos em `src/lib/ownmap-data.ts`
 
-## Instalação
+## Experiencia atual
+
+- Home em `/` abre direto no mapa OwnMap.
+- Fronteiras reais dos paises no mapa mundial.
+- Estados do Brasil desenhados por GeoJSON quando o usuario entra no Brasil.
+- Marcadores de cidades brasileiras e internacionais.
+- Busca/autocomplete por pais, estado e cidade.
+- Zoom por botao, roda do mouse e arrastar o mapa.
+- Camadas de exploracao: mundo, pais, estado e cidade.
+- Modos do mapa: disputa, arrecadacao, guerra, oportunidade e donos.
+- Painel lateral/bottom sheet com dono, banner, mensagem, top 5, eventos, valor simbolico e faltam pontos.
+- Personalizacao visual mockada: URL de banner, avatar, mensagem e cor de destaque.
+- Lista “Explorar territorios” com filtros.
+- Rankings em `/rankings`.
+- Pagina detalhada de territorio em `/territory/[slug]`.
+- Perfil publico mockado em `/user/[slug]`.
+
+## Rodando localmente
 
 ```bash
 npm install
-cp .env.example .env
-npx prisma generate
-npx prisma migrate dev
-npx prisma db seed
 npm run dev
 ```
 
 Abra `http://localhost:3000`.
 
-## Variáveis de ambiente
-
-```env
-DATABASE_URL="postgresql://postgres:postgres@localhost:5432/compre_o_topo?schema=public"
-MERCADOPAGO_ACCESS_TOKEN="TEST-your-sandbox-access-token"
-MERCADOPAGO_WEBHOOK_SECRET="your-mercado-pago-webhook-secret"
-NEXT_PUBLIC_APP_URL="http://localhost:3000"
-ADMIN_PASSWORD="troque-esta-senha"
-ADMIN_SESSION_SECRET="use-um-segredo-longo-com-32-caracteres-ou-mais"
-```
-
-## PostgreSQL
-
-Crie um banco local:
+## Build
 
 ```bash
-createdb compre_o_topo
-npx prisma migrate dev
-npx prisma db seed
-```
-
-O seed cria 40 usuários, territórios globais/internacionais/brasileiros, rankings, pagamentos aprovados, guerras ativas e logs.
-
-## Mercado Pago sandbox
-
-1. Crie ou acesse sua aplicação no painel de desenvolvedores do Mercado Pago.
-2. Copie o access token de teste e coloque em `MERCADOPAGO_ACCESS_TOKEN`.
-3. Configure um webhook para:
-
-```text
-https://seu-dominio.com/api/webhooks/mercadopago
-```
-
-4. Copie a assinatura secreta do webhook para `MERCADOPAGO_WEBHOOK_SECRET`.
-
-Para teste local com ngrok:
-
-```bash
-ngrok http 3000
-```
-
-Atualize:
-
-```env
-NEXT_PUBLIC_APP_URL="https://seu-subdominio.ngrok-free.app"
-```
-
-Webhook local:
-
-```text
-https://seu-subdominio.ngrok-free.app/api/webhooks/mercadopago
-```
-
-Sem `MERCADOPAGO_ACCESS_TOKEN`, a API entra em modo desenvolvimento e cria um Pix pendente com código dev. Para Pix real, configure o token sandbox ou produção.
-
-## Comandos
-
-```bash
-npm install
-npm run dev
+npm run lint
 npm run build
 npm run start
-npm run lint
-npm run prisma:generate
-npm run prisma:migrate
-npm run prisma:seed
 ```
 
-## Rotas principais
+## Dados geograficos
 
-- `/` mapa competitivo
-- `/rankings` rankings global, país, estado e cidade
-- `/territory/[slug]` página de território
-- `/user/[slug]` perfil público
-- `/checkout` checkout Pix
-- `/payment/[id]` status do pagamento
-- `/admin/login` login admin
-- `/admin` painel admin protegido
+O mapa mundial usa `world-atlas/countries-110m.json`, com nomes e status enriquecidos por mocks internos. O Brasil usa o arquivo `public/maps/brazil-states.geojson` para desenhar estados com fronteiras reais.
 
-## APIs
+As cidades aparecem como marcadores por coordenadas. O MVP inclui Curitiba, Sao Jose dos Pinhais, Londrina, Maringa, Ponta Grossa, Sao Paulo, Campinas, Santos, Rio de Janeiro, Niteroi, Belo Horizonte, Contagem, Porto Alegre, Caxias do Sul, Florianopolis, Joinville, Salvador, Recife, Fortaleza, Brasilia, Goiania, Manaus, Belem, Vitoria, Cuiaba, Campo Grande e cidades internacionais como Buenos Aires, Lisboa, Paris, Londres, Nova York, Los Angeles e Toquio.
 
-- `POST /api/payments/create`
-- `GET /api/payments/[id]`
-- `POST /api/webhooks/mercadopago`
-- `GET /api/rankings`
-- `GET /api/territories`
-- `GET /api/territories/[slug]`
-- `GET /api/users/[slug]`
-- `POST /api/admin/login`
-- `POST /api/admin/logout`
-- `GET /api/admin/stats`
-- `GET /api/admin/payments`
-- `GET /api/admin/users`
-- `PATCH /api/admin/users/[id]`
-- `GET /api/admin/logs`
+## Identidade
 
-## Regras implementadas
-
-- Cada R$1,00 confirmado vale 100 pontos.
-- Valor mínimo: R$1,00.
-- O backend calcula pontos a partir de `amountCents`.
-- Pagamentos só contam após status aprovado.
-- Webhook é idempotente.
-- Dono do território é o maior `TerritoryScore`.
-- Status do território:
-  - `NONE`: sem pontos
-  - `ACTIVE`: um competidor
-  - `WAR`: top 1 e top 2 separados por até 500 pontos
-  - `DOMINATED`: top 1 tem mais que 2x o top 2
-  - `COMPETITIVE`: disputa ativa fora dos casos acima
-
-## Segurança básica
-
-- Zod em entradas de API
-- Sanitização de nome e mensagem
-- Bloqueio por `BannedWord`
-- Rate limit em checkout e admin login
-- Cookie admin httpOnly e assinado
-- Secrets apenas no servidor
-- Assinatura Mercado Pago validada quando `MERCADOPAGO_WEBHOOK_SECRET` existe
-- Idempotência no crédito de pagamento
-- Logs de auditoria
+- Nome do produto: OwnMap
+- Logo: `public/ownmap-logo.svg`
+- Visual: dark premium, mapa grafite, dourado para lideranca, verde para atividade, vermelho/laranja para guerra e cinza para territorios vazios.
 
 ## Deploy na Vercel
 
-1. Crie um Postgres gerenciado e configure `DATABASE_URL`.
-2. Configure as variáveis de ambiente na Vercel.
-3. Rode migrations em ambiente seguro:
-
-```bash
-npx prisma migrate deploy
-```
-
-4. Faça deploy:
-
 ```bash
 npm run build
+npx vercel deploy --prod
 ```
 
-Na Vercel, use a URL pública em `NEXT_PUBLIC_APP_URL` e cadastre o webhook do Mercado Pago apontando para `/api/webhooks/mercadopago`.
+O projeto esta preparado para deploy como app Next.js. Como a home atual usa dados mockados e assets locais, ela nao depende de banco para abrir.
 
-## Limitações do MVP
+## Limitacoes desta fase
 
-- Usuários públicos não têm login próprio; identidade é baseada no nome público.
-- O mapa é SVG customizado e competitivo, não GIS de precisão cartográfica.
-- O modo sem token Mercado Pago é apenas desenvolvimento e não aprova pagamentos reais.
-- Moderação é básica: banimento, ocultar mensagem e palavras bloqueadas.
+- A personalizacao ainda e preview local no navegador.
+- A busca usa dados mockados internos, nao uma API global de geocoding.
+- Municipios brasileiros completos podem ser adicionados depois por arquivo GeoJSON/IBGE ou busca sob demanda.
+- Pagamentos, webhook, admin e banco definitivo estao fora do foco visual atual e nao aparecem no fluxo principal.
 
-## Próximos passos
+## Proximos passos
 
-- Login de usuários e histórico privado.
-- Antifraude por device/IP.
-- Websocket ou SSE para ranking em tempo real.
-- Mapa geográfico com malhas oficiais de países/estados.
-- Cupons e campanhas por cidade.
-- Moderação avançada de nomes e mensagens.
-
-## Referências Mercado Pago
-
-- Pix via Checkout API: https://www.mercadopago.com.br/developers/en/docs/checkout-api-payments/integration-configuration/integrate-pix
-- Webhooks e assinatura `x-signature`: https://www.mercadopago.com.br/developers/en/docs/checkout-pro/payment-notifications
+- Adicionar municipios completos do Brasil sob demanda por estado.
+- Salvar personalizacao do dono em banco.
+- Criar upload real de banner/avatar.
+- Reativar pagamento e ranking persistente quando a experiencia visual estiver aprovada.
+- Adicionar geolocalizacao para “perto de voce”.

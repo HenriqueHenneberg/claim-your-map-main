@@ -14,8 +14,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Compre o Topo",
-  description: "Pague pouco. Suba no ranking. Domine sua cidade, seu estado ou o mundo.",
+  title: "OwnMap",
+  description: "Escolha um territorio, suba no ranking e deixe sua marca no mapa.",
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {

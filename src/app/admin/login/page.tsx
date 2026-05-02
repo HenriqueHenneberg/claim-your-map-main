@@ -1,9 +1,5 @@
-import { AdminLoginForm } from "@/components/AdminLoginForm";
+import { redirect } from "next/navigation";
 
 export default function AdminLoginPage() {
-  return (
-    <div className="px-4 pb-12 pt-32">
-      <AdminLoginForm />
-    </div>
-  );
+  redirect("/");
 }

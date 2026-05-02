@@ -1,14 +1,11 @@
-import { HomeDashboard } from "@/components/HomeDashboard";
-import { getHomeData } from "@/lib/queries";
+import { MapShell } from "@/components/ownmap/MapShell";
 
-export const dynamic = "force-dynamic";
+type Props = {
+  searchParams?: Promise<{ territory?: string }>;
+};
 
-export default async function HomePage() {
-  const data = await getHomeData();
+export default async function HomePage({ searchParams }: Props) {
+  const params = await searchParams;
 
-  return (
-    <div className="px-4 pb-12 pt-24 md:px-6">
-      <HomeDashboard {...data} />
-    </div>
-  );
+  return <MapShell initialSlug={params?.territory} />;
 }
