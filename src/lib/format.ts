@@ -87,5 +87,6 @@ export function compactDate(value: string | Date) {
     month: "2-digit",
     hour: "2-digit",
     minute: "2-digit",
+    timeZone: "America/Sao_Paulo",
   }).format(new Date(value));
 }
