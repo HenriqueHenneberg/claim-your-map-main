@@ -1,6 +1,5 @@
 .env
 .env.*
-!.env.example
 .admin-generated.txt
 node_modules
 .next
