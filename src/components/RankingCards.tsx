@@ -51,9 +51,10 @@ export function UserRankRow({ row }: { row: RankingRow }) {
       </div>
       <Link
         href="/checkout"
-        className="inline-flex justify-center rounded-lg border border-emerald-300/30 px-3 py-2 text-sm font-bold text-emerald-200 hover:bg-emerald-300 hover:text-zinc-950"
+        className="inline-flex flex-col items-center justify-center rounded-lg border border-emerald-300/30 px-3 py-2 text-center text-sm font-bold text-emerald-200 hover:bg-emerald-300 hover:text-zinc-950"
       >
-        {row.pointsToPass > 0 ? `Faltam ${formatPoints(row.pointsToPass)} pts` : "Ultrapassar"}
+        <span>Ultrapassar</span>
+        {row.pointsToPass > 0 ? <span className="text-[11px] font-medium opacity-80">Faltam {formatPoints(row.pointsToPass)} pts</span> : null}
       </Link>
     </div>
   );
