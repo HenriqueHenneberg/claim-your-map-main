@@ -88,6 +88,23 @@
     @apply border border-white/10 bg-slate-950/[0.92] shadow-2xl shadow-black/40 backdrop-blur-xl;
   }
 
+  .ownmap-map-stage {
+    touch-action: none;
+    overscroll-behavior: contain;
+  }
+
+  .ownmap-map-stage svg *:focus {
+    outline: none;
+  }
+
+  .ownmap-scrollbar-none {
+    scrollbar-width: none;
+  }
+
+  .ownmap-scrollbar-none::-webkit-scrollbar {
+    display: none;
+  }
+
   .ownmap-section {
     @apply relative;
   }

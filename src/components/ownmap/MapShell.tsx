@@ -1,12 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useRef, useState, type MouseEvent, type PointerEvent, type WheelEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type MouseEvent, type PointerEvent } from "react";
 import { feature } from "topojson-client";
 import { geoNaturalEarth1, geoPath } from "d3-geo";
 import worldAtlas from "world-atlas/countries-110m.json";
 import {
-  ArrowLeft,
   Crosshair,
   Flame,
   ImageIcon,
@@ -73,6 +72,36 @@ const statusColors: Record<OwnMapStatus, string> = {
 
 const typeOrder = { country: 0, state: 1, city: 2 };
 
+function rewindBrazilGeometry(geometry: Geometry): Geometry {
+  if (geometry.type === "Polygon") {
+    return {
+      ...geometry,
+      coordinates: geometry.coordinates.map((ring) => [...ring].reverse()),
+    };
+  }
+
+  if (geometry.type === "MultiPolygon") {
+    return {
+      ...geometry,
+      coordinates: geometry.coordinates.map((polygon) => polygon.map((ring) => [...ring].reverse())),
+    };
+  }
+
+  return geometry;
+}
+
+function normalizeBrazilGeojson(
+  geojson: FeatureCollection<Geometry, BrazilStateProperties>,
+): FeatureCollection<Geometry, BrazilStateProperties> {
+  return {
+    ...geojson,
+    features: geojson.features.map((state) => ({
+      ...state,
+      geometry: rewindBrazilGeometry(state.geometry),
+    })),
+  };
+}
+
 function colorForTerritory(territory: OwnMapTerritory, mode: OwnMapMode) {
   if (mode === "war") return territory.status === "war" ? "#e46c3a" : "#25313d";
   if (mode === "opportunity") {
@@ -118,13 +147,13 @@ function statusTone(status: OwnMapStatus) {
 function MapModeSelector({ mode, onChange }: { mode: OwnMapMode; onChange: (mode: OwnMapMode) => void }) {
   const modes: OwnMapMode[] = ["dispute", "revenue", "war", "opportunity", "owners"];
   return (
-    <div className="ownmap-glass pointer-events-auto flex gap-1 p-1">
+    <div className="ownmap-glass ownmap-scrollbar-none pointer-events-auto flex w-full max-w-[calc(100vw-1.5rem)] gap-1 overflow-x-auto p-1 md:w-auto md:max-w-none">
       {modes.map((item) => (
         <button
           key={item}
           type="button"
           onClick={() => onChange(item)}
-          className={`rounded-md px-3 py-2 text-xs font-bold transition ${
+          className={`shrink-0 rounded-md px-3 py-2 text-xs font-bold transition ${
             mode === item ? "bg-white text-slate-950" : "text-slate-300 hover:bg-white/10 hover:text-white"
           }`}
         >
@@ -311,7 +340,7 @@ function TerritoryPanel({
         <div className="absolute bottom-3 left-4 right-4 flex items-end justify-between gap-3">
           <div>
             <div className="mb-2 inline-flex rounded-full border px-2 py-1 text-[10px] font-bold uppercase tracking-[0.14em]" style={{ borderColor: `${accent}80`, color: accent }}>
-              {typeLabels[territory.type]} · {statusLabels[territory.status]}
+              {typeLabels[territory.type]} - {statusLabels[territory.status]}
             </div>
             <h2 className="text-2xl font-black text-white">{territory.name}</h2>
             <p className="text-xs text-slate-300">{[territory.city, territory.state, territory.country].filter(Boolean).join(", ")}</p>
@@ -536,8 +565,10 @@ export function MapShell({ initialSlug }: { initialSlug?: string }) {
   const [transform, setTransform] = useState<Transform>({ x: 0, y: 0, k: 1 });
   const [tooltip, setTooltip] = useState<Tooltip | null>(null);
   const [customizations, setCustomizations] = useState<Record<string, Customization>>({});
-  const [panelOpen, setPanelOpen] = useState(true);
+  const [panelOpen, setPanelOpen] = useState(Boolean(initialSlug));
   const dragRef = useRef<{ x: number; y: number; start: Transform } | null>(null);
+  const bodyOverflowRef = useRef<string | null>(null);
+  const mapStageRef = useRef<HTMLDivElement | null>(null);
   const svgRef = useRef<SVGSVGElement | null>(null);
 
   const countries = useMemo(
@@ -586,7 +617,7 @@ export function MapShell({ initialSlug }: { initialSlug?: string }) {
   useEffect(() => {
     fetch("/maps/brazil-states.geojson")
       .then((response) => response.json())
-      .then((geojson: FeatureCollection<Geometry, BrazilStateProperties>) => setBrazilGeo(geojson))
+      .then((geojson: FeatureCollection<Geometry, BrazilStateProperties>) => setBrazilGeo(normalizeBrazilGeojson(geojson)))
       .catch(() => setBrazilGeo(null));
   }, []);
 
@@ -595,6 +626,20 @@ export function MapShell({ initialSlug }: { initialSlug?: string }) {
     const territory = territoryBySlug.get(initialSlug);
     if (territory) selectTerritory(territory);
   }, [initialSlug, territoryBySlug]);
+
+  useEffect(() => {
+    const stage = mapStageRef.current;
+    if (!stage) return undefined;
+
+    const handleWheel = (event: WheelEvent) => {
+      event.preventDefault();
+      event.stopPropagation();
+      zoomAt(event.clientX, event.clientY, event.deltaY);
+    };
+
+    stage.addEventListener("wheel", handleWheel, { passive: false });
+    return () => stage.removeEventListener("wheel", handleWheel);
+  });
 
   const zoomToBounds = (bounds: [[number, number], [number, number]], maxScale = 8) => {
     const [[x0, y0], [x1, y1]] = bounds;
@@ -618,6 +663,25 @@ export function MapShell({ initialSlug }: { initialSlug?: string }) {
     });
   };
 
+  const zoomAt = (clientX: number | null, clientY: number | null, deltaY: number) => {
+    const rect = svgRef.current?.getBoundingClientRect();
+    const centerX = rect && clientX !== null ? ((clientX - rect.left) / rect.width) * MAP_WIDTH : MAP_WIDTH / 2;
+    const centerY = rect && clientY !== null ? ((clientY - rect.top) / rect.height) * MAP_HEIGHT : MAP_HEIGHT / 2;
+    const factor = deltaY > 0 ? 0.88 : 1.12;
+
+    setTransform((current) => {
+      const nextK = Math.min(9, Math.max(0.82, Number((current.k * factor).toFixed(3))));
+      const worldX = (centerX - current.x) / current.k;
+      const worldY = (centerY - current.y) / current.k;
+
+      return {
+        k: nextK,
+        x: Number((centerX - worldX * nextK).toFixed(2)),
+        y: Number((centerY - worldY * nextK).toFixed(2)),
+      };
+    });
+  };
+
   const selectTerritory = (territory: OwnMapTerritory) => {
     setSelected(territory);
     setPanelOpen(true);
@@ -625,7 +689,7 @@ export function MapShell({ initialSlug }: { initialSlug?: string }) {
     if (territory.type === "country") {
       setViewLevel("country");
       const countryFeature = countryFeatureBySlug.get(territory.slug);
-      if (countryFeature) zoomToBounds(path.bounds(countryFeature as never) as [[number, number], [number, number]], 5.2);
+      if (countryFeature) zoomToBounds(path.bounds(countryFeature as never) as [[number, number], [number, number]], 2.2);
     }
     if (territory.type === "state") {
       setViewLevel("state");
@@ -639,20 +703,21 @@ export function MapShell({ initialSlug }: { initialSlug?: string }) {
     }
   };
 
-  const goBack = () => {
-    if (viewLevel === "city") {
-      const state = selected.state ? brazilStates.find((territory) => territory.state === selected.state) : undefined;
-      if (state) return selectTerritory(state);
-      const country = countryTerritories.find((territory) => territory.name === selected.country);
-      if (country) return selectTerritory(country);
-    }
-    if (viewLevel === "state") {
-      const brazil = countryTerritories.find((territory) => territory.slug === "brasil");
-      if (brazil) return selectTerritory(brazil);
-    }
+  const resetWorld = () => {
     setViewLevel("world");
     setTransform({ x: 0, y: 0, k: 1 });
-    setSelected(initialSelection);
+    setTooltip(null);
+  };
+
+  const selectCurrentCountry = () => {
+    const country = countryTerritories.find((territory) => territory.name === selectedCountry);
+    if (country) selectTerritory(country);
+    else resetWorld();
+  };
+
+  const selectCurrentState = () => {
+    const state = selected.state ? brazilStates.find((territory) => territory.state === selected.state) : undefined;
+    if (state) selectTerritory(state);
   };
 
   const pointerPosition = (event: MouseEvent<SVGElement>) => {
@@ -662,20 +727,34 @@ export function MapShell({ initialSlug }: { initialSlug?: string }) {
 
   const onPointerDown = (event: PointerEvent<SVGSVGElement>) => {
     dragRef.current = { x: event.clientX, y: event.clientY, start: transform };
-    event.currentTarget.setPointerCapture(event.pointerId);
+    if (bodyOverflowRef.current === null) {
+      bodyOverflowRef.current = document.body.style.overflow;
+      document.body.style.overflow = "hidden";
+    }
+    const captureTarget = event.target instanceof Element ? event.target : event.currentTarget;
+    captureTarget.setPointerCapture?.(event.pointerId);
   };
 
   const onPointerMove = (event: PointerEvent<SVGSVGElement>) => {
     if (!dragRef.current) return;
+    event.preventDefault();
     const dx = event.clientX - dragRef.current.x;
     const dy = event.clientY - dragRef.current.y;
     setTransform({ ...dragRef.current.start, x: dragRef.current.start.x + dx, y: dragRef.current.start.y + dy });
   };
 
-  const onWheel = (event: WheelEvent<SVGSVGElement>) => {
-    event.preventDefault();
-    const delta = event.deltaY > 0 ? -0.18 : 0.18;
-    setTransform((current) => ({ ...current, k: Math.min(9, Math.max(0.8, Number((current.k + delta).toFixed(2)))) }));
+  const endDrag = (event?: PointerEvent<SVGSVGElement>) => {
+    const captureTarget = event?.target instanceof Element ? event.target : event?.currentTarget;
+    if (event && captureTarget?.hasPointerCapture?.(event.pointerId)) {
+      captureTarget.releasePointerCapture(event.pointerId);
+    } else if (event?.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    }
+    dragRef.current = null;
+    if (bodyOverflowRef.current !== null) {
+      document.body.style.overflow = bodyOverflowRef.current;
+      bodyOverflowRef.current = null;
+    }
   };
 
   const selectedCountry = selected.type === "country" ? selected.name : selected.country;
@@ -684,11 +763,17 @@ export function MapShell({ initialSlug }: { initialSlug?: string }) {
     viewLevel !== "world" && (selectedCountry === "Brasil" || viewLevel === "state" || (viewLevel === "city" && selected.country === "Brasil"));
   const visibleCities = cityTerritories.filter((city) => {
     if (viewLevel === "world") return city.featured;
-    if (viewLevel === "country") return city.country === selectedCountry;
+    if (viewLevel === "country") return selectedCountry === "Brasil" ? false : city.country === selectedCountry;
     if (viewLevel === "state") return city.country === selectedCountry && city.state === selectedState;
     if (viewLevel === "city") return city.country === selected.country && (!selected.state || city.state === selected.state);
     return false;
   });
+  const breadcrumbItems = [
+    { label: "Mundo", onClick: resetWorld },
+    ...(viewLevel !== "world" && selectedCountry ? [{ label: selectedCountry, onClick: selectCurrentCountry }] : []),
+    ...(viewLevel !== "world" && selected.state ? [{ label: selected.state, onClick: selectCurrentState }] : []),
+    ...(viewLevel === "city" && selected.type === "city" ? [{ label: selected.name, onClick: () => selectTerritory(selected) }] : []),
+  ];
 
   const selectedCustom = customizations[selected.slug];
   const compactStats = [
@@ -720,18 +805,20 @@ export function MapShell({ initialSlug }: { initialSlug?: string }) {
           </div>
         </div>
 
-        <div className="relative h-[calc(100vh-6rem)] min-h-[620px] overflow-hidden rounded-3xl border border-white/10 bg-[#071017] shadow-2xl shadow-black/40">
+        <div
+          ref={mapStageRef}
+          className="ownmap-map-stage relative h-[calc(100vh-6rem)] min-h-[620px] overflow-hidden rounded-3xl border border-white/10 bg-[#071017] shadow-2xl shadow-black/40"
+        >
           <svg
             ref={svgRef}
             viewBox={`0 0 ${MAP_WIDTH} ${MAP_HEIGHT}`}
-            className="h-full w-full touch-none select-none"
+            className="h-full w-full touch-none select-none outline-none"
             role="img"
             aria-label="Mapa interativo OwnMap"
             onPointerDown={onPointerDown}
             onPointerMove={onPointerMove}
-            onPointerUp={() => (dragRef.current = null)}
-            onPointerCancel={() => (dragRef.current = null)}
-            onWheel={onWheel}
+            onPointerUp={endDrag}
+            onPointerCancel={endDrag}
             onMouseLeave={() => setTooltip(null)}
           >
             <defs>
@@ -744,29 +831,31 @@ export function MapShell({ initialSlug }: { initialSlug?: string }) {
               </filter>
             </defs>
             <rect width={MAP_WIDTH} height={MAP_HEIGHT} fill="url(#oceanGradient)" />
-            <path d={path({ type: "Sphere" }) ?? undefined} fill="#08131c" stroke="#162838" strokeWidth="1.2" />
             <g transform={`translate(${transform.x} ${transform.y}) scale(${transform.k})`} style={{ transition: dragRef.current ? "none" : "transform 460ms cubic-bezier(.2,.8,.2,1)" }}>
               {countries.features.map((country, index) => {
                 const iso = String(country.id ?? "").padStart(3, "0");
                 const territory = createCountryTerritory(iso, country.properties?.name ?? "Territorio", index);
                 const d = path(country);
                 const isSelected = selected.slug === territory.slug;
+                const isDimmedForStateLayer = showBrazilStates && territory.slug === "brasil";
                 if (!d) return null;
                 return (
                   <path
                     key={`${iso}-${index}`}
                     d={d}
+                    fillRule="evenodd"
                     fill={colorForTerritory(territory, mode)}
-                    fillOpacity={isSelected ? 0.72 : territory.status === "empty" ? 0.32 : 0.54}
-                    stroke={isSelected ? "#fff3b0" : "#273746"}
+                    fillOpacity={isDimmedForStateLayer ? 0 : isSelected ? 0.72 : territory.status === "empty" ? 0.32 : 0.54}
+                    stroke={isSelected ? "#fff3b0" : isDimmedForStateLayer ? "#8ba3b466" : "#273746"}
                     strokeWidth={isSelected ? 1.6 / transform.k : 0.58 / transform.k}
                     filter={isSelected ? "url(#selectedGlow)" : undefined}
-                    className="cursor-pointer transition-[fill,fill-opacity,stroke] duration-300 hover:fill-opacity-95"
+                    className="cursor-pointer transition-[fill,fill-opacity,stroke] duration-300 focus:outline-none"
                     role="button"
                     tabIndex={0}
                     aria-label={`${territory.name} - ${typeLabels[territory.type]}`}
                     onClick={(event) => {
                       event.stopPropagation();
+                      event.currentTarget.blur();
                       selectTerritory(territory);
                     }}
                     onMouseMove={(event) => {
@@ -785,21 +874,36 @@ export function MapShell({ initialSlug }: { initialSlug?: string }) {
                   const d = path(state as Feature<Geometry, BrazilStateProperties>);
                   if (!territory || !d) return null;
                   const isSelected = selected.slug === territory.slug;
+                  const isBrazilCountryLayer = viewLevel === "country" && selectedCountry === "Brasil";
                   return (
                     <path
                       key={territory.slug}
                       d={d}
+                      fillRule="evenodd"
                       fill={colorForTerritory(territory, mode)}
-                      fillOpacity={isSelected ? 0.74 : territory.status === "empty" ? 0.34 : 0.52}
+                      fillOpacity={
+                        isBrazilCountryLayer
+                          ? isSelected
+                            ? 0.44
+                            : territory.status === "empty"
+                              ? 0.16
+                              : 0.28
+                          : isSelected
+                            ? 0.74
+                            : territory.status === "empty"
+                              ? 0.34
+                              : 0.52
+                      }
                       stroke={isSelected ? "#fff3b0" : "#d9e2ef99"}
                       strokeWidth={isSelected ? 1.25 / transform.k : 0.55 / transform.k}
                       filter={isSelected ? "url(#selectedGlow)" : undefined}
-                      className="cursor-pointer transition-[fill,fill-opacity,stroke] duration-300 hover:fill-opacity-95"
+                      className="cursor-pointer transition-[fill,fill-opacity,stroke] duration-300 focus:outline-none"
                       role="button"
                       tabIndex={0}
                       aria-label={`${territory.name} - Estado`}
                       onClick={(event) => {
                         event.stopPropagation();
+                        event.currentTarget.blur();
                         selectTerritory(territory);
                       }}
                       onMouseMove={(event) => {
@@ -807,6 +911,56 @@ export function MapShell({ initialSlug }: { initialSlug?: string }) {
                         setTooltip({ ...point, territory });
                       }}
                     />
+                  );
+                })}
+
+              {showBrazilStates &&
+                brazilStates.map((state) => {
+                  if (typeof state.longitude !== "number" || typeof state.latitude !== "number") return null;
+                  const point = projection([state.longitude, state.latitude]);
+                  if (!point) return null;
+                  const isSelected = selected.slug === state.slug;
+                  const uf = state.id.replace("state-", "");
+                  const color = colorForTerritory(state, mode);
+                  return (
+                    <g
+                      key={`${state.slug}-marker`}
+                      role="button"
+                      tabIndex={0}
+                      aria-label={`${state.name} - marcador de estado`}
+                      className="cursor-pointer focus:outline-none"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        event.currentTarget.blur();
+                        selectTerritory(state);
+                      }}
+                      onMouseMove={(event) => {
+                        const pointPosition = pointerPosition(event);
+                        setTooltip({ ...pointPosition, territory: state });
+                      }}
+                    >
+                      <circle
+                        cx={point[0]}
+                        cy={point[1]}
+                        r={(isSelected ? 5 : 3.2) / Math.sqrt(transform.k)}
+                        fill={color}
+                        stroke={isSelected ? "#fff3b0" : "#ffffffcc"}
+                        strokeWidth={(isSelected ? 1.8 : 1) / transform.k}
+                      />
+                      <text
+                        x={point[0]}
+                        y={point[1] - 7 / Math.sqrt(transform.k)}
+                        textAnchor="middle"
+                        fontSize={8 / Math.sqrt(transform.k)}
+                        fontWeight="900"
+                        fill="#f8fafc"
+                        stroke="#020617"
+                        strokeWidth={2 / transform.k}
+                        paintOrder="stroke"
+                      >
+                        {uf}
+                      </text>
+                    </g>
                   );
                 })}
 
@@ -830,11 +984,13 @@ export function MapShell({ initialSlug }: { initialSlug?: string }) {
                       stroke={isSelected ? "#fff3b0" : "#ffffffcc"}
                       strokeWidth={(isSelected ? 2 : 1.1) / transform.k}
                       filter={isSelected ? "url(#selectedGlow)" : undefined}
+                      className="focus:outline-none"
                       role="button"
                       tabIndex={0}
                       aria-label={`${city.name} - Cidade`}
                       onClick={(event) => {
                         event.stopPropagation();
+                        event.currentTarget.blur();
                         selectTerritory(city);
                       }}
                       onMouseMove={(event) => {
@@ -851,25 +1007,54 @@ export function MapShell({ initialSlug }: { initialSlug?: string }) {
           <TerritoryTooltip tooltip={tooltip} mode={mode} />
 
           <div className="pointer-events-none absolute bottom-4 left-4 right-4 z-20 flex flex-wrap items-end justify-between gap-3">
-            <div className="ownmap-glass pointer-events-auto flex items-center gap-2 p-1">
-              <button type="button" onClick={goBack} className="flex items-center gap-2 rounded-md px-3 py-2 text-xs font-bold text-white hover:bg-white/10">
-                <ArrowLeft className="size-4" />
-                {viewLevel === "world" ? "Mundo" : "Voltar"}
-              </button>
-              <span className="hidden text-xs text-slate-500 sm:inline">
-                {viewLevel === "world" ? "Clique em um pais para aproximar" : `${typeLabels[selected.type]} selecionado`}
-              </span>
+            <div className="flex max-w-[calc(100%-5rem)] flex-col gap-2">
+              <nav className="ownmap-glass pointer-events-auto flex max-w-full items-center gap-1 overflow-auto p-1" aria-label="Navegacao do mapa">
+                {breadcrumbItems.map((item, index) => (
+                  <span key={`${item.label}-${index}`} className="flex shrink-0 items-center gap-1">
+                    {index ? <span className="text-xs text-slate-600">/</span> : null}
+                    <button
+                      type="button"
+                      onClick={item.onClick}
+                      className="rounded-md px-2.5 py-2 text-xs font-black text-slate-200 hover:bg-white/10 hover:text-white"
+                    >
+                      {item.label}
+                    </button>
+                  </span>
+                ))}
+              </nav>
+              {viewLevel !== "world" ? (
+                <div className="ownmap-glass pointer-events-auto flex max-w-full items-center gap-1 overflow-auto p-1">
+                  <button type="button" onClick={resetWorld} className="shrink-0 rounded-md px-3 py-2 text-xs font-bold text-white hover:bg-white/10">
+                    Voltar para mundo
+                  </button>
+                  {viewLevel === "state" || viewLevel === "city" ? (
+                  <button type="button" onClick={selectCurrentCountry} className="shrink-0 rounded-md px-3 py-2 text-xs font-bold text-white hover:bg-white/10">
+                    Voltar para pais
+                  </button>
+                  ) : null}
+                  {viewLevel === "city" && selected.state ? (
+                  <button type="button" onClick={selectCurrentState} className="shrink-0 rounded-md px-3 py-2 text-xs font-bold text-white hover:bg-white/10">
+                    Voltar para estado
+                  </button>
+                  ) : null}
+                </div>
+              ) : null}
             </div>
             <div className="ownmap-glass pointer-events-auto flex overflow-hidden p-1">
-              <button type="button" onClick={() => setTransform((current) => ({ ...current, k: Math.min(9, current.k + 0.35) }))} className="size-9 rounded-md text-white hover:bg-white/10">+</button>
-              <button type="button" onClick={() => setTransform((current) => ({ ...current, k: Math.max(0.8, current.k - 0.35) }))} className="size-9 rounded-md text-white hover:bg-white/10">-</button>
+              <button type="button" onClick={() => zoomAt(null, null, -1)} className="size-9 rounded-md text-white hover:bg-white/10">+</button>
+              <button type="button" onClick={() => zoomAt(null, null, 1)} className="size-9 rounded-md text-white hover:bg-white/10">-</button>
             </div>
           </div>
         </div>
 
-        <div className={`fixed inset-x-0 bottom-0 z-40 rounded-t-3xl border border-white/10 bg-slate-950/96 shadow-2xl backdrop-blur-xl transition-transform lg:absolute lg:inset-y-24 lg:right-5 lg:left-auto lg:w-[390px] lg:rounded-2xl ${
-          panelOpen ? "translate-y-0" : "translate-y-[calc(100%-72px)] lg:translate-y-0"
-        }`}>
+        <div
+          onClick={() => {
+            if (!panelOpen) setPanelOpen(true);
+          }}
+          className={`fixed inset-x-0 bottom-0 z-40 rounded-t-3xl border border-white/10 bg-slate-950/96 shadow-2xl backdrop-blur-xl transition-transform lg:absolute lg:inset-y-24 lg:right-5 lg:left-auto lg:w-[390px] lg:rounded-2xl ${
+          panelOpen ? "translate-y-0 lg:translate-x-0" : "translate-y-[calc(100%-72px)] lg:translate-x-[calc(100%+1.5rem)] lg:translate-y-0"
+        }`}
+        >
           <TerritoryPanel
             territory={selected}
             custom={selectedCustom}

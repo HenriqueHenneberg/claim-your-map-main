@@ -11,7 +11,7 @@ export function Header() {
             <Image src="/ownmap-logo.svg" alt="OwnMap" width={44} height={44} priority className="size-11 object-cover" />
           </span>
           <span className="min-w-0">
-            <span className="block truncate text-sm font-black uppercase text-white">OwnMap</span>
+            <span className="block truncate text-sm font-black text-white">OwnMap</span>
             <span className="hidden text-xs text-slate-500 sm:block">Domine o mapa, deixe sua marca.</span>
           </span>
         </Link>

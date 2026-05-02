@@ -1,0 +1,17 @@
+{
+  "name": "OwnMap",
+  "short_name": "OwnMap",
+  "description": "Explore territorios, veja donos locais e dispute sua cidade no mapa.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#071017",
+  "theme_color": "#071017",
+  "icons": [
+    {
+      "src": "/ownmap-logo.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
