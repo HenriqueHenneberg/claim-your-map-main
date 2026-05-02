@@ -326,8 +326,8 @@ function TerritoryPanel({
   const [joined, setJoined] = useState(false);
 
   return (
-    <aside className="ownmap-panel flex max-h-[68vh] flex-col overflow-hidden rounded-2xl lg:max-h-[calc(100vh-7.5rem)]">
-      <div className="relative h-40 shrink-0 bg-cover bg-center" style={{ backgroundImage: `url(${bannerUrl})` }}>
+    <aside className="ownmap-panel flex max-h-[74vh] flex-col overflow-hidden rounded-2xl lg:max-h-[calc(100vh-7.5rem)]">
+      <div className="relative h-36 shrink-0 bg-cover bg-center sm:h-40" style={{ backgroundImage: `url(${bannerUrl})` }}>
         <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/30 to-transparent" />
         <button
           type="button"
