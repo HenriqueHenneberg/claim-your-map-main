@@ -364,10 +364,10 @@ function TerritoryPanel({
           <p className="mt-3 rounded-lg border border-white/[0.08] bg-slate-950/50 p-3 text-sm leading-relaxed text-slate-200">"{message}"</p>
         </div>
 
-        <div className="mt-3 grid grid-cols-3 gap-2">
+        <div className="mt-3 grid grid-cols-2 gap-2">
           <Metric label="Dono" value={formatOwnMapPoints(territory.ownerPoints)} />
           <Metric label="Total" value={formatOwnMapPoints(territory.points)} />
-          <Metric label="Valor" value={formatOwnMapCurrency(territory.totalCents)} />
+          <Metric label="Valor" value={formatOwnMapCurrency(territory.totalCents)} className="col-span-2" />
         </div>
 
         <div className="mt-3 rounded-xl border border-orange-400/20 bg-orange-400/10 p-3 text-sm text-orange-100">
@@ -469,11 +469,11 @@ function TerritoryPanel({
   );
 }
 
-function Metric({ label, value }: { label: string; value: string }) {
+function Metric({ label, value, className = "" }: { label: string; value: string; className?: string }) {
   return (
-    <div className="rounded-xl border border-white/10 bg-white/[0.04] p-3">
+    <div className={`min-w-0 rounded-xl border border-white/10 bg-white/[0.04] p-3 ${className}`}>
       <div className="text-[10px] uppercase tracking-[0.15em] text-slate-500">{label}</div>
-      <div className="mt-1 truncate text-sm font-black text-white">{value}</div>
+      <div className="mt-1 break-words text-sm font-black leading-tight text-white">{value}</div>
     </div>
   );
 }
