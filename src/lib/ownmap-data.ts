@@ -5,16 +5,19 @@ export type OwnMapMode = "dispute" | "revenue" | "war" | "opportunity" | "owners
 export type OwnerProfile = {
   name: string;
   title: string;
+  customTitle: string;
   avatarUrl: string;
   message: string;
   accent: string;
   emblem: string;
+  socialHandle: string;
 };
 
 export type OwnMapRank = {
   name: string;
   points: number;
   avatarUrl: string;
+  message?: string;
 };
 
 export type OwnMapTerritory = {
@@ -32,6 +35,7 @@ export type OwnMapTerritory = {
   longitude?: number;
   owner?: OwnerProfile;
   bannerUrl: string;
+  aliases?: string[];
   points: number;
   ownerPoints: number;
   totalCents: number;
@@ -50,66 +54,82 @@ export const owners: Record<string, OwnerProfile> = {
   matheus: {
     name: "Matheus Lima",
     title: "Prefeito de Curitiba",
+    customTitle: "Dono do Frio",
     avatarUrl: avatar("photo-1500648767791-00dcc994a43e"),
     message: "Curitiba e nossa, quero ver tomar.",
     accent: "#d6a83a",
     emblem: "Rosa dos Ventos",
+    socialHandle: "@matheusdomapa",
   },
   ana: {
     name: "Ana Kawa",
     title: "Prefeita de Sao Paulo",
+    customTitle: "Capital Acordada",
     avatarUrl: avatar("photo-1494790108377-be9c29b29330"),
     message: "A capital nao dorme. Cada ponto aqui pesa.",
     accent: "#22c55e",
     emblem: "Capital Acordada",
+    socialHandle: "@anakawa",
   },
   lucas: {
     name: "Lucas Faria",
     title: "Presidente do Brasil",
+    customTitle: "Soberano do Verde",
     avatarUrl: avatar("photo-1506794778202-cad84cf45f1d"),
     message: "O mapa comeca aqui.",
     accent: "#f2c45b",
     emblem: "Brasil no Topo",
+    socialHandle: "@lucasfaria",
   },
   bia: {
     name: "Bia Martins",
     title: "Governadora do Parana",
+    customTitle: "Sul em Guerra",
     avatarUrl: avatar("photo-1534528741775-53994a69daeb"),
     message: "O sul entrou no jogo antes de todo mundo.",
     accent: "#fb923c",
     emblem: "Sul em Guerra",
+    socialHandle: "@biamartins",
   },
   sofia: {
     name: "Sofia Almeida",
     title: "Rainha de Lisboa",
+    customTitle: "Atlantico Azul",
     avatarUrl: avatar("photo-1524504388940-b1c1722653e1"),
     message: "Lisboa lidera com classe.",
     accent: "#38bdf8",
-    emblem: "Atlântico",
+    socialHandle: "@sofiaalmeida",
+    emblem: "Atlantico",
   },
   yuki: {
     name: "Yuki Tanaka",
     title: "Guardiao de Toquio",
+    customTitle: "Neon District",
     avatarUrl: avatar("photo-1507003211169-0a1dd7228f2d"),
     message: "Tokyo never sleeps.",
     accent: "#f43f5e",
     emblem: "Neon District",
+    socialHandle: "@yukitanaka",
   },
   ava: {
     name: "Ava Johnson",
     title: "Mayor of New York",
+    customTitle: "Skyline Holder",
     avatarUrl: avatar("photo-1544005313-94ddf0286df2"),
     message: "The skyline belongs to whoever moves first.",
     accent: "#60a5fa",
     emblem: "Skyline",
+    socialHandle: "@avaownsny",
   },
   martin: {
     name: "Martin Rios",
     title: "Lider de Buenos Aires",
+    customTitle: "Rio Plate",
     avatarUrl: avatar("photo-1506794778202-cad84cf45f1d"),
     message: "La ciudad esta viva.",
     accent: "#34d399",
     emblem: "Rio Plate",
+    socialHandle: "@martinrios",
   },
 };
 
@@ -156,10 +176,17 @@ export const countryNameOverrides: Record<string, string> = {
   "076": "Brasil",
   "124": "Canada",
   "152": "Chile",
+  "156": "China",
   "250": "Franca",
+  "276": "Alemanha",
+  "380": "Italia",
   "392": "Japao",
+  "410": "Coreia do Sul",
+  "484": "Mexico",
+  "528": "Paises Baixos",
   "620": "Portugal",
   "724": "Espanha",
+  "784": "Emirados Arabes Unidos",
   "826": "Reino Unido",
   "840": "Estados Unidos",
   "858": "Uruguai",
@@ -366,7 +393,7 @@ export const brazilStates: OwnMapTerritory[] = [
     longitude: Number(longitude),
     status,
     owner: override.owner,
-    bannerUrl: banner("photo-1483729558449-99ef09a8c325"),
+    bannerUrl: "",
     points: override.points ?? (status === "empty" ? 0 : 12000 + index * 2100),
     ownerPoints: override.ownerPoints ?? (status === "empty" ? 0 : 6000 + index * 700),
     totalCents: override.totalCents ?? (status === "empty" ? 0 : 12000 + index * 2100),
@@ -384,10 +411,13 @@ export const cityTerritories: OwnMapTerritory[] = [
   ["Sao Jose dos Pinhais", "Brasil", "Parana", -25.53, -49.21, "war", undefined, 9700, 5000, 300, "photo-1518005020951-eccb494ad742"],
   ["Londrina", "Brasil", "Parana", -23.31, -51.16, "active", undefined, 12200, 6500, 700, "photo-1483729558449-99ef09a8c325"],
   ["Maringa", "Brasil", "Parana", -23.42, -51.93, "contested", undefined, 15400, 8000, 500, "photo-1483729558449-99ef09a8c325"],
-  ["Ponta Grossa", "Brasil", "Parana", -25.09, -50.16, "empty", undefined, 0, 0, 100, "photo-1483729558449-99ef09a8c325"],
+  ["Ponta Grossa", "Brasil", "Parana", -25.09, -50.16, "empty", undefined, 0, 0, 100, ""],
+  ["Cascavel", "Brasil", "Parana", -24.96, -53.46, "active", undefined, 9300, 4800, 650, ""],
+  ["Foz do Iguacu", "Brasil", "Parana", -25.54, -54.59, "contested", undefined, 14900, 7600, 450, ""],
   ["Sao Paulo", "Brasil", "Sao Paulo", -23.55, -46.63, "contested", owners.ana, 66600, 26000, 500, "photo-1543059080-f9b1272213d5"],
   ["Campinas", "Brasil", "Sao Paulo", -22.9, -47.06, "active", undefined, 19000, 9400, 1200, "photo-1543059080-f9b1272213d5"],
   ["Santos", "Brasil", "Sao Paulo", -23.96, -46.33, "empty", undefined, 0, 0, 100, "photo-1507525428034-b723cf961d3e"],
+  ["Guarulhos", "Brasil", "Sao Paulo", -23.45, -46.53, "active", undefined, 12600, 5900, 780, ""],
   ["Rio de Janeiro", "Brasil", "Rio de Janeiro", -22.9, -43.2, "war", undefined, 46950, 20100, 250, "photo-1483729558449-99ef09a8c325"],
   ["Niteroi", "Brasil", "Rio de Janeiro", -22.88, -43.1, "active", undefined, 8200, 5000, 900, "photo-1483729558449-99ef09a8c325"],
   ["Belo Horizonte", "Brasil", "Minas Gerais", -19.92, -43.94, "dominated", undefined, 29900, 16000, 7000, "photo-1519985176271-adb1088fa94c"],
@@ -416,14 +446,24 @@ export const cityTerritories: OwnMapTerritory[] = [
   ["Barcelona", "Espanha", undefined, 41.38, 2.17, "war", undefined, 22100, 10800, 300, "photo-1539037116277-4db20889f2d4"],
   ["Paris", "Franca", undefined, 48.85, 2.35, "active", undefined, 24300, 12800, 1400, "photo-1502602898657-3e91760cbb34"],
   ["Londres", "Reino Unido", undefined, 51.51, -0.13, "contested", undefined, 29500, 14000, 900, "photo-1513635269975-59663e0ac1ad"],
-  ["Nova York", "Estados Unidos", "New York", 40.71, -74, "war", owners.ava, 56900, 25000, 200, "photo-1499092346589-b9b6be3e94b2"],
+  ["Berlin", "Alemanha", undefined, 52.52, 13.4, "active", undefined, 21400, 10200, 850, ""],
+  ["Rome", "Italia", undefined, 41.9, 12.5, "contested", undefined, 18900, 9400, 620, ""],
+  ["Amsterdam", "Paises Baixos", undefined, 52.37, 4.9, "active", undefined, 13200, 6800, 900, ""],
+  ["New York", "Estados Unidos", "New York", 40.71, -74, "war", owners.ava, 56900, 25000, 200, "photo-1499092346589-b9b6be3e94b2", ["Nova York", "NYC"]],
   ["Miami", "Estados Unidos", "Florida", 25.76, -80.19, "active", undefined, 14800, 7300, 900, "photo-1507525428034-b723cf961d3e"],
   ["Los Angeles", "Estados Unidos", "California", 34.05, -118.24, "contested", undefined, 40500, 19800, 1000, "photo-1500530855697-b586d89ba3ee"],
-  ["Toquio", "Japao", undefined, 35.68, 139.69, "contested", owners.yuki, 37000, 18500, 1100, "photo-1540959733332-eab4deabeeaf"],
-].map(([name, country, state, latitude, longitude, status, owner, points, ownerPoints, gapPoints, bannerId], index) => {
+  ["Chicago", "Estados Unidos", "Illinois", 41.88, -87.63, "active", undefined, 17100, 8300, 760, ""],
+  ["Tokyo", "Japao", undefined, 35.68, 139.69, "contested", owners.yuki, 37000, 18500, 1100, "photo-1540959733332-eab4deabeeaf", ["Toquio", "Tokio"]],
+  ["Seoul", "Coreia do Sul", undefined, 37.57, 126.98, "war", undefined, 24600, 11900, 280, ""],
+  ["Beijing", "China", undefined, 39.9, 116.41, "active", undefined, 23100, 11200, 980, ""],
+  ["Shanghai", "China", undefined, 31.23, 121.47, "contested", undefined, 28700, 13400, 640, ""],
+  ["Dubai", "Emirados Arabes Unidos", undefined, 25.2, 55.27, "dominated", undefined, 31900, 18500, 4200, ""],
+  ["Mexico City", "Mexico", undefined, 19.43, -99.13, "war", undefined, 26500, 12900, 300, "", ["Cidade do Mexico"]],
+].map(([name, country, state, latitude, longitude, status, owner, points, ownerPoints, gapPoints, bannerId, aliases], index) => {
   const nameText = String(name);
   const countryText = String(country);
   const stateText = state ? String(state) : undefined;
+  const aliasList = Array.isArray(aliases) ? aliases.map(String) : [];
   return {
     id: `city-${slugifyOwnMap(`${nameText}-${countryText}`)}`,
     slug: slugifyOwnMap(`${nameText}-${stateText ?? countryText}`),
@@ -436,7 +476,8 @@ export const cityTerritories: OwnMapTerritory[] = [
     longitude: Number(longitude),
     status: status as OwnMapStatus,
     owner: owner as OwnerProfile | undefined,
-    bannerUrl: banner(String(bannerId)),
+    bannerUrl: bannerId ? banner(String(bannerId)) : "",
+    aliases: aliasList,
     points: Number(points),
     ownerPoints: Number(ownerPoints),
     totalCents: Number(points),
@@ -462,12 +503,21 @@ export function makeRanking(owner: OwnerProfile | undefined, status: OwnMapStatu
     "Sofia Almeida",
     "Caio Prado",
     "Yuki Tanaka",
+    "Ava Johnson",
+    "Martin Rios",
+    "Lia Campos",
+    "Noah Silva",
+    "Clara Moon",
+    "Diego Ramos",
+    "Maya Torres",
+    "Rafa Nunes",
   ];
   const first = owner?.name ?? names[seed % names.length];
   const base = status === "empty" ? 0 : 18000 + seed * 930;
-  return Array.from({ length: status === "empty" ? 0 : 5 }, (_, index) => ({
+  return Array.from({ length: status === "empty" ? 0 : 12 }, (_, index) => ({
     name: index === 0 ? first : names[(seed + index) % names.length],
     points: Math.max(900, base - index * (status === "war" ? 350 : 2400)),
+    message: index === 0 ? "Defendendo o topo." : index < 3 ? "Encostando no lider." : "Subindo no mapa.",
     avatarUrl: avatar(
       [
         "photo-1500648767791-00dcc994a43e",
@@ -477,6 +527,45 @@ export function makeRanking(owner: OwnerProfile | undefined, status: OwnMapStatu
       ][index % 4],
     ),
   }));
+}
+
+export function getExpandedRanking(territory: OwnMapTerritory, limit = 100) {
+  if (territory.status === "empty") return [];
+  const seed = territory.slug.length + territory.name.length;
+  const baseRows = territory.ranking.length ? territory.ranking : makeRanking(territory.owner, territory.status, seed);
+  const names = [
+    "Ana Kawa",
+    "Matheus Lima",
+    "Renan Lopes",
+    "Taina Moraes",
+    "Pedro Souza",
+    "Sofia Almeida",
+    "Caio Prado",
+    "Yuki Tanaka",
+    "Ava Johnson",
+    "Martin Rios",
+    "Lia Campos",
+    "Noah Silva",
+    "Clara Moon",
+    "Diego Ramos",
+    "Maya Torres",
+    "Rafa Nunes",
+    "Helena Costa",
+    "Bruno Park",
+    "Nina Duarte",
+    "Leo Martins",
+  ];
+  const rows = Array.from({ length: limit }, (_, index) => {
+    const source = baseRows[index % baseRows.length];
+    const points = Math.max(100, (source?.points ?? territory.ownerPoints) - index * (territory.status === "war" ? 180 : 520));
+    return {
+      name: index === 0 && territory.owner ? territory.owner.name : source?.name ?? names[(seed + index) % names.length],
+      points,
+      avatarUrl: source?.avatarUrl ?? avatar("photo-1500648767791-00dcc994a43e"),
+      message: source?.message ?? (index < 3 ? "Mirando o topo." : "Quer aparecer aqui."),
+    };
+  });
+  return rows.sort((a, b) => b.points - a.points).slice(0, limit);
 }
 
 export function createCountryTerritory(iso: string, naturalName: string, index: number): OwnMapTerritory {

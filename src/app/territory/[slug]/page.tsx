@@ -4,12 +4,14 @@ import { Crown, MapPin, Palette, Sparkles, Swords, Trophy } from "lucide-react";
 import {
   formatOwnMapCurrency,
   formatOwnMapPoints,
+  getExpandedRanking,
   getOwnMapTerritoriesForStaticPages,
   getOwnMapTerritoryBySlug,
   statusLabels,
   titleForOwnMapTerritory,
   typeLabels,
 } from "@/lib/ownmap-data";
+import { territoryVisualStyle } from "@/lib/ownmap-visuals";
 
 type Props = {
   params: Promise<{ slug: string }>;
@@ -21,12 +23,9 @@ export default async function TerritoryPage({ params }: Props) {
   if (!territory) notFound();
 
   const allTerritories = getOwnMapTerritoriesForStaticPages();
-  const rankingPool = allTerritories
-    .flatMap((item) => item.ranking)
-    .filter((rank, index, rows) => rows.findIndex((other) => other.name === rank.name) === index);
-  const ranking = [...territory.ranking, ...rankingPool.filter((rank) => !territory.ranking.some((item) => item.name === rank.name))]
-    .slice(0, 10)
-    .map((rank, index) => ({ ...rank, points: Math.max(700, rank.points - index * 120) }));
+  const ranking = getExpandedRanking(territory, 100);
+  const topThree = ranking.slice(0, 3);
+  const topTen = ranking.slice(3, 10);
   const nearby = allTerritories
     .filter((item) => item.slug !== territory.slug && (item.country === territory.country || item.state === territory.state))
     .sort((a, b) => a.gapPoints - b.gapPoints)
@@ -44,11 +43,11 @@ export default async function TerritoryPage({ params }: Props) {
     <div className="mx-auto max-w-7xl px-4 pb-12 pt-28 md:px-6">
       <section className="overflow-hidden rounded-3xl border border-white/10 bg-slate-950/70 shadow-2xl shadow-black/30">
         <div className="grid min-h-[520px] lg:grid-cols-[1fr_420px]">
-          <div className="relative min-h-[430px] bg-cover bg-center" style={{ backgroundImage: `url(${territory.bannerUrl})` }}>
+          <div className="relative min-h-[430px] bg-cover bg-center" style={territoryVisualStyle(territory)}>
             <div className="absolute inset-0 bg-gradient-to-r from-slate-950/95 via-slate-950/52 to-slate-950/20" />
             <div className="absolute inset-x-0 bottom-0 p-5 md:p-8">
               <div className="mb-3 inline-flex rounded-full border px-3 py-1 text-xs font-black uppercase tracking-[0.16em]" style={{ borderColor: `${accent}80`, color: accent }}>
-                {typeLabels[territory.type]} · {statusLabels[territory.status]}
+                {typeLabels[territory.type]} - {statusLabels[territory.status]}
               </div>
               <h1 className="max-w-3xl text-5xl font-black text-white md:text-7xl">{territory.name}</h1>
               <p className="mt-3 max-w-2xl text-lg text-slate-300">
@@ -71,7 +70,10 @@ export default async function TerritoryPage({ params }: Props) {
                 <div className="min-w-0">
                   <div className="text-xs uppercase tracking-[0.18em] text-slate-500">Dono atual</div>
                   <div className="truncate text-xl font-black text-white">{territory.owner?.name ?? "Sem dono"}</div>
-                  <div className="truncate text-sm text-slate-400">{territory.owner?.title ?? titleForOwnMapTerritory(territory)}</div>
+                  <div className="truncate text-sm text-slate-400">
+                    {territory.owner?.title ?? titleForOwnMapTerritory(territory)}
+                    {territory.owner?.customTitle ? ` - ${territory.owner.customTitle}` : ""}
+                  </div>
                 </div>
               </div>
             </div>
@@ -95,7 +97,7 @@ export default async function TerritoryPage({ params }: Props) {
               className="flex items-center justify-center gap-2 rounded-2xl bg-white px-5 py-4 text-sm font-black text-slate-950 hover:bg-amber-100"
             >
               <MapPin className="size-4" />
-              Abrir no mapa e disputar
+              {territory.status === "empty" ? "Ser o primeiro dono" : "Abrir no mapa e disputar"}
             </Link>
           </aside>
         </div>
@@ -119,19 +121,50 @@ export default async function TerritoryPage({ params }: Props) {
           </section>
 
           <section className="rounded-3xl border border-white/10 bg-white/[0.035] p-5">
+            <div className="mb-4 flex flex-col justify-between gap-3 md:flex-row md:items-center">
+              <h2 className="flex items-center gap-2 text-xl font-black text-white">
+                <Crown className="size-5 text-amber-300" />
+                Top 3 que mandam aqui
+              </h2>
+              <div className="flex gap-2">
+                {["Top 10", "Top 50", "Top 100"].map((label) => (
+                  <span key={label} className="rounded-full border border-white/10 px-3 py-1 text-xs font-black text-slate-300">{label}</span>
+                ))}
+              </div>
+            </div>
+            <div className="grid gap-3 md:grid-cols-3">
+              {topThree.map((rank, index) => (
+                <div key={`${rank.name}-podium-${index}`} className={`rounded-2xl border p-4 ${index === 0 ? "border-amber-300/35 bg-amber-300/10" : "border-white/10 bg-slate-950/45"}`}>
+                  <div className="flex items-center gap-3">
+                    <span className="text-2xl font-black text-slate-500">#{index + 1}</span>
+                    <img src={rank.avatarUrl} alt="" className="size-11 rounded-xl object-cover" />
+                    <span className="min-w-0">
+                      <span className="block truncate font-black text-white">{rank.name}</span>
+                      <span className="block truncate text-xs text-slate-500">{index === 0 ? titleForOwnMapTerritory(territory) : index === 1 ? "Vice-lider" : "Rival direto"}</span>
+                    </span>
+                  </div>
+                  <div className="mt-3 text-sm font-bold text-emerald-200">{formatOwnMapPoints(rank.points)} pts</div>
+                  {index > 0 ? <div className="mt-1 text-xs text-slate-500">faltam {formatOwnMapCurrency(Math.max(100, topThree[index - 1].points - rank.points))} para passar</div> : null}
+                </div>
+              ))}
+              {!topThree.length ? <p className="rounded-2xl border border-dashed border-white/10 p-4 text-slate-500">Disponivel para conquista. Seja o primeiro dono.</p> : null}
+            </div>
+          </section>
+
+          <section className="rounded-3xl border border-white/10 bg-white/[0.035] p-5">
             <h2 className="mb-4 flex items-center gap-2 text-xl font-black text-white">
               <Trophy className="size-5 text-amber-300" />
-              Ranking local · Top 10
+              Ranking local - Top 10
             </h2>
             <div className="space-y-2">
-              {ranking.map((rank, index) => (
+              {topTen.map((rank, index) => (
                 <div key={`${rank.name}-${index}`} className="grid gap-3 rounded-2xl border border-white/10 bg-slate-950/45 p-3 md:grid-cols-[54px_1fr_140px]">
-                  <span className="text-2xl font-black text-slate-500">#{index + 1}</span>
+                  <span className="text-2xl font-black text-slate-500">#{index + 4}</span>
                   <span className="flex min-w-0 items-center gap-3">
                     <img src={rank.avatarUrl} alt="" className="size-10 rounded-xl object-cover" />
                     <span className="min-w-0">
                       <span className="block truncate font-bold text-white">{rank.name}</span>
-                      <span className="block truncate text-xs text-slate-500">{index === 0 ? titleForOwnMapTerritory(territory) : "Desafiante"}</span>
+                      <span className="block truncate text-xs text-slate-500">faltam {formatOwnMapCurrency(Math.max(100, ranking[index + 2].points - rank.points))} para passar</span>
                     </span>
                   </span>
                   <span className="text-sm font-bold text-emerald-200">{formatOwnMapPoints(rank.points)} pts</span>
@@ -159,7 +192,7 @@ export default async function TerritoryPage({ params }: Props) {
               Personalizacao
             </h2>
             <div className="overflow-hidden rounded-2xl border border-white/10">
-              <div className="h-28 bg-cover bg-center" style={{ backgroundImage: `url(${territory.bannerUrl})` }} />
+              <div className="h-28 bg-cover bg-center" style={territoryVisualStyle(territory)} />
               <div className="bg-slate-950/75 p-4">
                 <div className="text-xs uppercase tracking-[0.18em] text-slate-500">Emblema</div>
                 <div className="mt-1 text-lg font-black text-white">{territory.owner?.emblem ?? "Primeira marca"}</div>
@@ -192,7 +225,7 @@ export default async function TerritoryPage({ params }: Props) {
                 <Link key={item.slug} href={`/territory/${item.slug}`} className="block rounded-2xl border border-white/10 bg-slate-950/45 p-3 hover:bg-white/[0.06]">
                   <span className="block font-bold text-white">{item.name}</span>
                   <span className="text-xs text-slate-500">
-                    {statusLabels[item.status]} · faltam {formatOwnMapPoints(item.gapPoints)} pts
+                    {statusLabels[item.status]} - faltam {formatOwnMapPoints(item.gapPoints)} pts
                   </span>
                 </Link>
               ))}

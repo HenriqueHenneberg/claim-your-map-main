@@ -28,6 +28,7 @@ import {
   createCountryTerritory,
   formatOwnMapCurrency,
   formatOwnMapPoints,
+  getExpandedRanking,
   modeLabels,
   statusLabels,
   titleForOwnMapTerritory,
@@ -36,6 +37,7 @@ import {
   type OwnMapStatus,
   type OwnMapTerritory,
 } from "@/lib/ownmap-data";
+import { territoryVisualStyle } from "@/lib/ownmap-visuals";
 import type { Feature, FeatureCollection, Geometry } from "geojson";
 import type { GeometryCollection, Topology } from "topojson-specification";
 
@@ -144,6 +146,26 @@ function statusTone(status: OwnMapStatus) {
   return tones[status];
 }
 
+function ctaForTerritory(territory: OwnMapTerritory) {
+  if (territory.status === "empty") return "Ser o primeiro dono por R$1";
+  if (territory.gapPoints <= 500) return `Virar ${titleForOwnMapTerritory(territory).split(" de ")[0]} por ${formatOwnMapCurrency(territory.gapPoints)}`;
+  if (territory.gapPoints <= 1200) return `Ultrapassar lider por ${formatOwnMapCurrency(territory.gapPoints)}`;
+  return `Disputar ${territory.name}`;
+}
+
+function rankRole(territory: OwnMapTerritory, index: number) {
+  if (index === 0) return titleForOwnMapTerritory(territory);
+  if (index === 1) return "Vice-lider";
+  if (index === 2) return "Rival direto";
+  if (territory.type === "state") return "Conselho estadual";
+  if (territory.type === "country") return "Elite nacional";
+  return "Elite local";
+}
+
+function pointsToCurrency(points: number) {
+  return formatOwnMapCurrency(Math.max(100, points));
+}
+
 function MapModeSelector({ mode, onChange }: { mode: OwnMapMode; onChange: (mode: OwnMapMode) => void }) {
   const modes: OwnMapMode[] = ["dispute", "revenue", "war", "opportunity", "owners"];
   return (
@@ -203,6 +225,26 @@ function HeatLegend({ mode }: { mode: OwnMapMode }) {
   );
 }
 
+function ModeInsight({ mode, territories }: { mode: OwnMapMode; territories: OwnMapTerritory[] }) {
+  const copy: Record<OwnMapMode, string> = {
+    dispute: `${territories.filter((item) => item.status === "war" || item.status === "contested").length} territorios com disputa quente agora.`,
+    revenue: `${territories.filter((item) => item.totalCents > 60000).length} territorios ja passaram de R$600 simbolicos.`,
+    war: `${territories.filter((item) => item.status === "war").length} guerras onde poucos reais mudam o dono.`,
+    opportunity: `${territories.filter((item) => item.gapPoints <= 500 || item.status === "empty").length} lugares baratos para aparecer hoje.`,
+    owners: "As cores seguem a estetica escolhida pelos donos atuais.",
+  };
+
+  return (
+    <div className="ownmap-glass pointer-events-auto hidden max-w-xs p-3 text-xs text-slate-300 md:block">
+      <div className="flex items-center gap-2 font-black text-white">
+        <Sparkles className="size-3.5 text-amber-300" />
+        O que olhar
+      </div>
+      <p className="mt-1 leading-relaxed">{copy[mode]}</p>
+    </div>
+  );
+}
+
 function TerritorySearch({
   territories,
   onSelect,
@@ -217,7 +259,7 @@ function TerritorySearch({
     if (!text) return territories.filter((territory) => territory.featured).slice(0, 8);
     return territories
       .filter((territory) =>
-        cleanText(`${territory.name} ${territory.state ?? ""} ${territory.country ?? ""}`).includes(text),
+        cleanText(`${territory.name} ${territory.state ?? ""} ${territory.country ?? ""} ${(territory.aliases ?? []).join(" ")}`).includes(text),
       )
       .sort((a, b) => typeOrder[a.type] - typeOrder[b.type] || b.points - a.points)
       .slice(0, 14);
@@ -281,15 +323,15 @@ function TerritoryTooltip({ tooltip, mode }: { tooltip: Tooltip | null; mode: Ow
       style={{ left: tooltip.x + 16, top: tooltip.y + 16 }}
     >
       <div className="flex items-center gap-3">
-        <span className="size-9 rounded-lg border border-white/10 bg-cover bg-center" style={{ backgroundImage: `url(${territory.bannerUrl})` }} />
+        <span className="size-9 rounded-lg border border-white/10 bg-cover bg-center" style={territoryVisualStyle(territory)} />
         <span className="min-w-0">
           <span className="block truncate text-sm font-black text-white">{territory.name}</span>
-          <span className="text-xs text-slate-400">{typeLabels[territory.type]} · {statusLabels[territory.status]}</span>
+          <span className="text-xs text-slate-400">{typeLabels[territory.type]} - {statusLabels[territory.status]}</span>
         </span>
       </div>
       <div className="mt-2 grid grid-cols-2 gap-2 text-xs">
         <span className="rounded-lg bg-white/5 p-2 text-slate-300">{formatOwnMapPoints(territory.points)} pts</span>
-        <span className="rounded-lg bg-white/5 p-2 text-slate-300">{formatOwnMapCurrency(territory.totalCents)}</span>
+        <span className="rounded-lg bg-white/5 p-2 text-slate-300">faltam {pointsToCurrency(territory.gapPoints)}</span>
       </div>
       <div className="mt-2 text-xs text-slate-500">Visualizando por {modeLabels[mode].toLowerCase()}.</div>
     </div>
@@ -312,22 +354,26 @@ function TerritoryPanel({
   territory,
   custom,
   onCustomChange,
+  onDispute,
   onClose,
 }: {
   territory: OwnMapTerritory;
   custom?: Customization;
   onCustomChange: (custom: Customization) => void;
+  onDispute: (territory: OwnMapTerritory) => void;
   onClose?: () => void;
 }) {
   const owner = territory.owner;
   const message = custom?.message || owner?.message || "Territorio livre para quem chegar primeiro.";
   const accent = custom?.accent || owner?.accent || statusColors[territory.status];
   const bannerUrl = custom?.bannerUrl || territory.bannerUrl;
-  const [joined, setJoined] = useState(false);
+  const [rankLimit, setRankLimit] = useState(10);
+  const rankingRows = useMemo(() => getExpandedRanking(territory, rankLimit), [territory, rankLimit]);
+  const topThree = rankingRows.slice(0, 3);
 
   return (
     <aside className="ownmap-panel flex max-h-[74vh] flex-col overflow-hidden rounded-2xl lg:max-h-[calc(100vh-7.5rem)]">
-      <div className="relative h-36 shrink-0 bg-cover bg-center sm:h-40" style={{ backgroundImage: `url(${bannerUrl})` }}>
+      <div className="relative h-36 shrink-0 bg-cover bg-center sm:h-40" style={territoryVisualStyle(territory, bannerUrl)}>
         <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/30 to-transparent" />
         <button
           type="button"
@@ -358,7 +404,9 @@ function TerritoryPanel({
             <div className="min-w-0">
               <div className="text-xs uppercase tracking-[0.16em] text-slate-500">Dono atual</div>
               <div className="truncate font-black text-white">{owner?.name ?? "Sem dono"}</div>
-              <div className="truncate text-xs text-slate-400">{owner?.title ?? titleForOwnMapTerritory(territory)}</div>
+              <div className="truncate text-xs text-slate-400">
+                {owner?.title ?? titleForOwnMapTerritory(territory)}{owner?.customTitle ? ` - ${owner.customTitle}` : ""}
+              </div>
             </div>
           </div>
           <p className="mt-3 rounded-lg border border-white/[0.08] bg-slate-950/50 p-3 text-sm leading-relaxed text-slate-200">"{message}"</p>
@@ -373,35 +421,79 @@ function TerritoryPanel({
         <div className="mt-3 rounded-xl border border-orange-400/20 bg-orange-400/10 p-3 text-sm text-orange-100">
           <Swords className="mr-2 inline size-4" />
           Faltam so {formatOwnMapPoints(territory.gapPoints)} pontos para tomar {territory.name}.
-          <span className="block text-xs text-orange-200/80">Voce esta a {formatOwnMapCurrency(territory.gapPoints)} de virar {titleForOwnMapTerritory(territory).split(" de ")[0]}.</span>
+          <span className="block text-xs text-orange-200/80">Voce esta a {pointsToCurrency(territory.gapPoints)} de virar {titleForOwnMapTerritory(territory).split(" de ")[0]}.</span>
         </div>
 
         <button
           type="button"
-          onClick={() => setJoined(true)}
+          onClick={() => onDispute(territory)}
           className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl bg-white px-4 py-3 text-sm font-black text-slate-950 hover:bg-amber-100"
         >
           <Crosshair className="size-4" />
-          {joined ? "Voce entrou na disputa" : "Disputar este territorio"}
+          {ctaForTerritory(territory)}
         </button>
 
         <section className="mt-4">
-          <h3 className="mb-2 flex items-center gap-2 text-sm font-black text-white">
-            <Trophy className="size-4 text-amber-300" />
-            Top 5 local
-          </h3>
+          <div className="mb-2 flex items-center justify-between gap-2">
+            <h3 className="flex items-center gap-2 text-sm font-black text-white">
+              <Trophy className="size-4 text-amber-300" />
+              Ranking local
+            </h3>
+            <div className="flex rounded-lg border border-white/10 bg-slate-950/60 p-1">
+              {[10, 50, 100].map((limit) => (
+                <button
+                  key={limit}
+                  type="button"
+                  onClick={() => setRankLimit(limit)}
+                  className={`rounded-md px-2 py-1 text-[10px] font-black ${rankLimit === limit ? "bg-white text-slate-950" : "text-slate-400"}`}
+                >
+                  Top {limit}
+                </button>
+              ))}
+            </div>
+          </div>
+          {topThree.length ? (
+            <div className="mb-3 grid gap-2">
+              {topThree.map((rank, index) => {
+                const diff = index === 0 ? territory.gapPoints : Math.max(100, topThree[index - 1].points - rank.points);
+                return (
+                  <div key={`${rank.name}-podium-${index}`} className={`rounded-xl border p-3 ${index === 0 ? "border-amber-300/30 bg-amber-300/10" : "border-white/10 bg-white/[0.04]"}`}>
+                    <div className="flex items-center gap-3">
+                      <span className="text-lg font-black text-slate-500">#{index + 1}</span>
+                      <img src={rank.avatarUrl} alt="" className="size-9 rounded-lg object-cover" />
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-sm font-black text-white">{rank.name}</span>
+                        <span className="block truncate text-xs text-slate-500">{rankRole(territory, index)}</span>
+                      </span>
+                      <span className="text-xs font-bold text-emerald-200">{formatOwnMapPoints(rank.points)}</span>
+                    </div>
+                    {index > 0 ? <div className="mt-2 text-xs text-slate-400">faltam {formatOwnMapPoints(diff)} pts / {pointsToCurrency(diff)} para passar</div> : null}
+                  </div>
+                );
+              })}
+            </div>
+          ) : null}
           <div className="space-y-2">
-            {territory.ranking.length ? (
-              territory.ranking.slice(0, 5).map((rank, index) => (
-                <div key={`${rank.name}-${index}`} className="flex items-center gap-3 rounded-lg bg-white/[0.04] p-2">
-                  <span className="w-7 text-sm font-black text-slate-500">#{index + 1}</span>
-                  <img src={rank.avatarUrl} alt="" className="size-8 rounded-lg object-cover" />
-                  <span className="min-w-0 flex-1 truncate text-sm font-bold text-white">{rank.name}</span>
-                  <span className="text-xs text-emerald-200">{formatOwnMapPoints(rank.points)}</span>
-                </div>
-              ))
+            {rankingRows.length ? (
+              rankingRows.slice(3, Math.min(rankLimit, 12)).map((rank, index) => {
+                const position = index + 4;
+                const previous = rankingRows[position - 2];
+                const diff = Math.max(100, (previous?.points ?? rank.points + 100) - rank.points);
+                return (
+                  <div key={`${rank.name}-${position}`} className="grid grid-cols-[36px_1fr_auto] items-center gap-2 rounded-lg bg-white/[0.04] p-2">
+                    <span className="text-sm font-black text-slate-500">#{position}</span>
+                    <span className="min-w-0">
+                      <span className="block truncate text-sm font-bold text-white">{rank.name}</span>
+                      <span className="block truncate text-[11px] text-slate-500">faltam {pointsToCurrency(diff)} para passar</span>
+                    </span>
+                    <button type="button" onClick={() => onDispute(territory)} className="rounded-md border border-white/10 px-2 py-1 text-[10px] font-black text-slate-200 hover:bg-white/10">
+                      Ultrapassar
+                    </button>
+                  </div>
+                );
+              })
             ) : (
-              <div className="rounded-lg border border-dashed border-white/10 p-3 text-sm text-slate-500">Seja o primeiro dono.</div>
+              <div className="rounded-lg border border-dashed border-white/10 p-3 text-sm text-slate-500">Este territorio esta livre. Seja o primeiro dono.</div>
             )}
           </div>
         </section>
@@ -412,6 +504,9 @@ function TerritoryPanel({
             Personalizacao do territorio
           </h3>
           <div className="grid gap-2">
+            <div className="rounded-lg border border-white/[0.08] bg-white/[0.035] p-3 text-xs text-slate-400">
+              Este territorio foi personalizado por <span className="font-bold text-white">{owner?.name ?? "ninguem ainda"}</span>. Conteudo publico podera passar por moderacao.
+            </div>
             <label className="grid gap-1 text-xs font-bold text-slate-300">
               URL do banner
               <input
@@ -466,6 +561,74 @@ function TerritoryPanel({
         </section>
       </div>
     </aside>
+  );
+}
+
+function DisputeSimulator({ territory, onClose }: { territory: OwnMapTerritory; onClose: () => void }) {
+  const quickValues = [1, 2, 5, 10, 25];
+  const [amount, setAmount] = useState(territory.gapPoints <= 500 ? Math.max(1, Math.ceil(territory.gapPoints / 100)) : 5);
+  const points = amount * 100;
+  const currentRanking = getExpandedRanking(territory, 10);
+  const previewPosition =
+    territory.status === "empty" || points >= territory.gapPoints
+      ? 1
+      : points >= 1000
+        ? 2
+        : points >= 500
+          ? Math.min(5, currentRanking.length + 1)
+          : Math.min(10, currentRanking.length + 1);
+  const impact =
+    territory.status === "empty"
+      ? "voce estreia o territorio como dono"
+      : points >= territory.gapPoints
+        ? `voce toma ${territory.name}`
+        : previewPosition <= 3
+          ? `voce entra no Top ${previewPosition}`
+          : "voce aparece na elite local";
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end bg-black/55 p-3 backdrop-blur-sm md:items-center md:justify-center">
+      <div className="w-full max-w-lg overflow-hidden rounded-3xl border border-white/10 bg-slate-950 shadow-2xl">
+        <div className="relative h-32 bg-cover bg-center" style={territoryVisualStyle(territory)}>
+          <div className="absolute inset-0 bg-gradient-to-t from-slate-950 to-transparent" />
+          <button type="button" onClick={onClose} className="absolute right-3 top-3 rounded-lg bg-black/45 p-2 text-white" aria-label="Fechar simulador">
+            <X className="size-4" />
+          </button>
+          <div className="absolute bottom-4 left-4 right-4">
+            <div className="text-xs font-black uppercase tracking-[0.16em] text-amber-200">Simular disputa</div>
+            <h3 className="text-2xl font-black text-white">{territory.name}</h3>
+          </div>
+        </div>
+        <div className="grid gap-4 p-4">
+          <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-4">
+            <div className="text-sm text-slate-300">Cada R$1 vira 100 pontos. Com <span className="font-black text-white">{formatOwnMapCurrency(amount * 100)}</span>, {impact}.</div>
+            <div className="mt-3 h-2 overflow-hidden rounded-full bg-white/10">
+              <div className="h-full rounded-full bg-amber-300" style={{ width: `${Math.min(100, (points / Math.max(100, territory.gapPoints)) * 100)}%` }} />
+            </div>
+          </div>
+          <div className="grid grid-cols-5 gap-2">
+            {quickValues.map((value) => (
+              <button
+                key={value}
+                type="button"
+                onClick={() => setAmount(value)}
+                className={`rounded-xl border px-2 py-3 text-sm font-black ${amount === value ? "border-white bg-white text-slate-950" : "border-white/10 text-slate-200 hover:bg-white/10"}`}
+              >
+                R${value}
+              </button>
+            ))}
+          </div>
+          <div className="grid grid-cols-3 gap-2">
+            <Metric label="Pontos" value={formatOwnMapPoints(points)} />
+            <Metric label="Nova posicao" value={`#${previewPosition}`} />
+            <Metric label="Faltam" value={points >= territory.gapPoints ? "0" : formatOwnMapPoints(territory.gapPoints - points)} />
+          </div>
+          <button type="button" onClick={onClose} className="rounded-2xl bg-white px-5 py-4 text-sm font-black text-slate-950 hover:bg-amber-100">
+            {points >= territory.gapPoints || territory.status === "empty" ? ctaForTerritory(territory) : `Entrar na disputa com ${formatOwnMapCurrency(amount * 100)}`}
+          </button>
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -540,12 +703,12 @@ function ExploreTerritoriesList({
               selectedSlug === territory.slug ? "border-amber-300/70 bg-amber-300/10" : "border-white/10 bg-white/[0.035] hover:border-white/25"
             }`}
           >
-            <span className="h-16 rounded-xl bg-cover bg-center" style={{ backgroundImage: `url(${territory.bannerUrl})` }} />
+            <span className="h-16 rounded-xl bg-cover bg-center" style={territoryVisualStyle(territory)} />
             <span className="min-w-0 self-center">
               <span className="block truncate font-black text-white">{territory.name}</span>
-              <span className="block truncate text-xs text-slate-500">{typeLabels[territory.type]} · {statusLabels[territory.status]}</span>
+              <span className="block truncate text-xs text-slate-500">{typeLabels[territory.type]} - {statusLabels[territory.status]}</span>
               <span className="mt-1 block truncate text-xs text-slate-400">
-                {territory.owner?.name ?? "Livre"} · faltam {formatOwnMapPoints(territory.gapPoints)} pts
+                {territory.owner?.name ?? "Livre"} - faltam {formatOwnMapPoints(territory.gapPoints)} pts
               </span>
             </span>
             <span className="self-center rounded-full px-2 py-1 text-[10px] font-black text-slate-950" style={{ backgroundColor: statusColors[territory.status] }}>
@@ -566,6 +729,7 @@ export function MapShell({ initialSlug }: { initialSlug?: string }) {
   const [tooltip, setTooltip] = useState<Tooltip | null>(null);
   const [customizations, setCustomizations] = useState<Record<string, Customization>>({});
   const [panelOpen, setPanelOpen] = useState(Boolean(initialSlug));
+  const [simulatorTerritory, setSimulatorTerritory] = useState<OwnMapTerritory | null>(null);
   const dragRef = useRef<{ x: number; y: number; start: Transform } | null>(null);
   const bodyOverflowRef = useRef<string | null>(null);
   const mapStageRef = useRef<HTMLDivElement | null>(null);
@@ -785,7 +949,7 @@ export function MapShell({ initialSlug }: { initialSlug?: string }) {
 
   return (
     <div className="ownmap-root">
-      <section className="relative min-h-[calc(100vh-4rem)] overflow-hidden px-3 pb-3 pt-20 md:px-5 md:pb-5">
+      <section className="relative min-h-0 overflow-hidden px-3 pb-3 pt-20 md:min-h-[calc(100vh-4rem)] md:px-5 md:pb-5">
         <div className="pointer-events-none absolute inset-x-3 top-20 z-20 flex flex-col gap-3 md:inset-x-5 lg:flex-row lg:items-start lg:justify-between lg:pr-[410px]">
           <div className="flex w-full flex-col gap-3 lg:max-w-3xl">
             <div className="flex flex-wrap gap-2">
@@ -802,12 +966,13 @@ export function MapShell({ initialSlug }: { initialSlug?: string }) {
           <div className="flex flex-col items-start gap-3 lg:items-end">
             <MapModeSelector mode={mode} onChange={setMode} />
             <HeatLegend mode={mode} />
+            <ModeInsight mode={mode} territories={allTerritories} />
           </div>
         </div>
 
         <div
           ref={mapStageRef}
-          className="ownmap-map-stage relative h-[calc(100vh-6rem)] min-h-[620px] overflow-hidden rounded-3xl border border-white/10 bg-[#071017] shadow-2xl shadow-black/40"
+          className="ownmap-map-stage relative h-[380px] min-h-[380px] overflow-hidden rounded-3xl border border-white/10 bg-[#071017] shadow-2xl shadow-black/40 md:h-[calc(100vh-6rem)] md:min-h-[620px]"
         >
           <svg
             ref={svgRef}
@@ -1006,6 +1171,20 @@ export function MapShell({ initialSlug }: { initialSlug?: string }) {
 
           <TerritoryTooltip tooltip={tooltip} mode={mode} />
 
+          {!panelOpen ? (
+            <div className="pointer-events-none absolute left-1/2 top-28 z-20 hidden w-[360px] -translate-x-1/2 rounded-2xl border border-white/10 bg-slate-950/78 p-3 text-xs text-slate-300 shadow-2xl backdrop-blur md:block">
+              <div className="flex items-center gap-2 font-black text-white">
+                <Flame className="size-4 text-amber-300" />
+                Ao vivo no mapa
+              </div>
+              <p className="mt-1">
+                {selected.status === "empty"
+                  ? `${selected.name} esta livre. Seja o primeiro dono.`
+                  : selected.events[0] ?? `${selected.name} acabou de receber uma nova disputa.`}
+              </p>
+            </div>
+          ) : null}
+
           <div className="pointer-events-none absolute bottom-4 left-4 right-4 z-20 flex flex-wrap items-end justify-between gap-3">
             <div className="flex max-w-[calc(100%-5rem)] flex-col gap-2">
               <nav className="ownmap-glass pointer-events-auto flex max-w-full items-center gap-1 overflow-auto p-1" aria-label="Navegacao do mapa">
@@ -1058,10 +1237,14 @@ export function MapShell({ initialSlug }: { initialSlug?: string }) {
           <TerritoryPanel
             territory={selected}
             custom={selectedCustom}
+            onDispute={setSimulatorTerritory}
             onClose={() => setPanelOpen(false)}
             onCustomChange={(custom) => setCustomizations((current) => ({ ...current, [selected.slug]: custom }))}
           />
         </div>
+        {simulatorTerritory ? (
+          <DisputeSimulator territory={simulatorTerritory} onClose={() => setSimulatorTerritory(null)} />
+        ) : null}
       </section>
 
       <ExploreTerritoriesList territories={allTerritories} selectedSlug={selected.slug} onSelect={selectTerritory} />
